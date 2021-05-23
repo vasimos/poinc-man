@@ -524,18 +524,24 @@ class PoincMap:
             rtol parameter for solve_ivp for guess generation
         jac_tol: scalar, optional
             atol parameter for solve_ivp for Jacobian calculation. Since we decompose the Jacobian into a product of matrices, this need not be very low
+        tminFrac: scalar, optional 
+            option for guess generation (see guessMultiVarS)
         timer: boolean, optional 
             whether to output information on the time required for the solution of the boundary value problem
         refine_RM: boolean, optional
             whether to refine initial guess using the return map
+        tol_RM: float, optional
+            tollerance to use in solver that find POs of return map
         method_RM: string, optional
             method to use to find the cycle of the return map in the first step. Current options are 'bisect' and 'newton'
-        tminFrac: scalar, optional 
-            option for guess generation (see guessMultiVarS)
         max_nodes: integer
             maximum number of nodes allowed in solve_bvp
         jac_sample: integer 
             rate of sub-sampling of data points on solve_bvp solution for the calculation of the Jacobian
+        full_output: boolean, optional
+            whether to output full solution (fields 'time' and 'data')
+        stability: boolean, optional
+            whether to compute and return Floquet multipliers (field 'multipliers').
         init_only: boolean 
             if true, just initialize column labels for DataFrame and exit
         guess_from_RM_shadowing: boolean
@@ -545,6 +551,9 @@ class PoincMap:
         Returns:
             Numpy array containing the following orbit data:
             ['label', 'length', 'period','Poinc. points','s','multipliers', 'time', 'data', 'error code']
+            If full_ouput == False then 'data' are not returned.
+            If stability = False then 'multipliers' are not returned.
+            If init_only no computation is made but instead self.col attribut is set, which can be used to initialize a pandas DataFrame to store the data.
         Notes:
             The first time it is called the function also sets self.col which contains information on the columns of a pandas DataFrame which can be used to store the cycles (the DataFrame itself needs to be defined and build by the user).
         """
@@ -628,10 +637,17 @@ class PoincMap:
 
 
     def floquet_bvp(self,solPO, jac_tol=1e-6, timer=True, jac_sample=1):
-        # Floquet eigenproblem of cycle found by solve_bvp
-        # solPO is a solve_bvp solution object
-        # jac_sample is sample rate for points on the solution
-        # Return Jacobian
+        """ 
+        Solves Floquet eigenproblem for cycle found by solve_bvp, by decomposing the full Jacobian to a product of partial Jacobians, each calculated by integration in tangent space with initial condition a point in the solution computed by solve_bvp.
+        Parameters:
+            solPO: solve_bvp solution object
+            jac_tol: float, optional 
+                atol option for integrator which computes partial Jacobian matrix
+            jac_sample: integer, optional 
+                sample rate for points on the solution
+        # Returns: 
+            numpy array of dimension NxN containing the Jacobian of the periodic orbit. Here N is state-space dimension.
+        """
         if timer:
             tic = time.perf_counter()
         # For each point on the variational solution compute the Jacobian to the next point
@@ -658,111 +674,18 @@ class PoincMap:
         #print('mult=',mult)
         return jac
 
-            
-    #def map_s_s(self, s, r, rc):
-        #idx_low_r = np.where(r < rc)
-        #self.idx_map_s_s = idx_low_r[0][np.where(np.diff(idx_low_r).flatten() == 1)] # indices of points which map to s (they correspond to no gap in the data)  
-        #s_s = np.asarray([s[self.idx_map_s_s], s[(self.idx_map_s_s+np.ones_like(self.idx_map_s_s))]]).transpose() # define the map
-        #if s_s.shape[0] > 0:
-            #self.irpRM_s_s = self.interp1d_map(s_s) # Create interpolating function from map
-        #return s_s
-    
-    #def map_s_r(self, s, r, rc):
-        #idx_low_r = np.where(r < rc)
-        #self.idx_map_s_r = idx_low_r[0][np.where(np.diff(idx_low_r).flatten() > 1)] # indices of points which map to r
-        #s_r = np.asarray([s[self.idx_map_s_r],r[(self.idx_map_s_r+np.ones_like(self.idx_map_s_r))]]).transpose()
-        #if s_r.shape[0] > 0:
-            #self.irpRM_s_r = self.interp1d_map(s_r) # Create interpolating function from map
-        #return s_r
-
-    #def map_r_r(self, s, r, rc):
-        #idx_high_r = np.where(r > rc)
-        #self.idx_map_r_r = idx_high_r[0][np.where(np.diff(idx_high_r).flatten() == 1)] # indices of points which map to r (they correspond to no gap in the data)
-        #r_r =  np.asarray([r[self.idx_map_r_r],r[(self.idx_map_r_r+np.ones_like(self.idx_map_r_r))]]).transpose()
-        #if r_r.shape[0] > 0:
-            #self.irpRM_r_r = self.interp1d_map(r_r) # Create interpolating function from map
-        #return r_r
-    
-    #def map_r_s(self, s, r, rc):
-        #idx_high_r = np.where(r > rc)
-        #self.idx_map_r_s = idx_high_r[0][np.where(np.diff(idx_high_r).flatten() > 1)] # indices of points which map to s 
-        #r_s = np.asarray([r[self.idx_map_r_s],s[(self.idx_map_r_s+np.ones_like(self.idx_map_r_s))]]).transpose()
-        #if r_s.shape[0] > 0:
-            #self.irpRM_r_s = self.interp1d_map(r_s) # Create interpolating function from map
-        #return r_s
-
-    def guessMultiVar(self, ds, c0, seq, TpoincReturn,  eps=1e-9):
-        # Converts discrete map guess for periodic orbit to a 'loop' for solve_bvp
-        # ds: dynamical system to be integrated (this should be an instance initialized in main)
-        # c0: initial value for s or r
-        # seq: a string of the form 'srssr...ssrrs' describing which sub-manifold the successive points belong to
-        # TpoincReturn: average return time to poincare section
-        # eps: integrate for at least eps before checking Poincare condition to avoid early termination
-        # Returns:
-        #   [t, y]: length two sequence containing solution times and array with dependent variables 
-        # Add option for rtol atol !!!!
-        if seq[0] == 's':
-            icPOg = self.s2spV(c0)
-        elif seq[0] == 'r':
-            icPOg = self.r2spV(c0)
-        self.poincCondtx.__func__.terminal = True # Terminate integration after first intersection
-        self.int_min_t = eps #
-        # Add check for ds.A
-        solPOg = solve_ivp(ds.f_ps, [0,10*TpoincReturn], icPOg, method='BDF', events = self.poincCondtx, jac=ds.A, rtol=1e-6, atol=1e-9) # Integrate until next intersection with Poincare section.
-        POseg = solPOg.y    
-        POtseg = solPOg.t    
-        cOld = c0
-        
-        for i in np.arange(0, len(seq)-1):
-            if seq[i]=='s' and seq[i+1]=='r':
-                cNew = self.irpRM_s_r(cOld)
-                icPOg = self.r2spV(cNew)
-                cOld = cNew
-            elif seq[i]=='r' and seq[i+1]=='s':
-                cNew = self.irpRM_r_s(cOld)
-                icPOg = self.s2spV(cNew)
-                cOld = cNew
-            elif seq[i]=='s' and seq[i+1]=='s':
-                cNew = self.irpRM_s_s(cOld)
-                icPOg = self.s2spV(cNew)
-                cOld = cNew
-            elif seq[i]=='r' and seq[i+1]=='r':
-                cNew = self.irpRM_r_r(cOld)
-                icPOg = self.r2spV(cNew)
-                cOld = cNew            
-            # If we use reflection symmetry reduction and the previous solution segment ended out of the fundamental domain
-            # then map present segment initial condition out of the fundamental domain
-            if self.reduce_refl and not self.isInReflFD(POseg[:,-1]): 
-                icPOg = self.refl(icPOg)                
-            self.int_min_t = solPOg.t[-1]+eps 
-            # It would be better to define a new simulator object and pass this to this function than having a hardcoded integrator; this would probably need to be part of PoincareMapper.py
-            solPOg = solve_ivp(ds.f_ps, [solPOg.t[-1],solPOg.t[-1]+10*TpoincReturn], icPOg, method='BDF', events = self.poincCondtx, jac=ds.A, rtol=1e-6, atol=1e-9) # Integrate until next intersection with Poincare section.
-            POseg = np.hstack([POseg,solPOg.y[:,1:]])    
-            POtseg = np.hstack([POtseg,solPOg.t[1:]])
-            
-        return [POtseg, POseg]
-
-
-    def itinerary(self, n, s=None, r=None):
-        itin = np.full((n+1,2),None)
-        if r is None: #we start with s
-            itin[0,0] = np.asarray(s)
-        else: # we start with r
-            itin[0,1] = np.asarray(r)
-        for i in range(1, itin.shape[0]):
-            if itin[i-1,1] is None: # Previous symbol was s
-                if self.irpRM_s_s.x[0] <= itin[i-1,0] <= self.irpRM_s_s.x[-1]: # s lies within range of validity of s to s map
-                    itin[i,0] = self.irpRM_s_s(itin[i-1,0])
-                else: 
-                    itin[i,1] = self.irpRM_s_r(itin[i-1,0])
-            else: # previous symbol was r
-                if self.irpRM_r_s.x[0] <= itin[i-1,1] <= self.irpRM_r_s.x[-1]: # r lies within range of validity of r to s map
-                    itin[i,0] = self.irpRM_r_s(itin[i-1,1])
-                else:
-                    itin[i,1] = self.irpRM_r_r(itin[i-1,1])
-        return itin
 
     def itineraryS(self, s, n):
+        """
+        Compute forward itinerary for initial condition s using the tree map. 
+        Parameters:
+            s: float
+                initial value
+            n: integer
+                number of iterations
+        Notes:
+            The tree map is accessed through irpRM_s_s, irpRM_r_s, irpRM_s_r. 
+        """
         itin = np.zeros(n+1)
         itin[0] = s
         for i in range(1, itin.shape[0]):
@@ -773,6 +696,17 @@ class PoincMap:
         return itin
 
     def itinSingle(self, s, n):
+        """
+        Compute forward itinerary for initial condition s using one-dimensional map. 
+        Parameters:
+            s: float
+                initial value
+            n: integer
+                number of iterations
+        Notes:
+            The map is accessed through interpRM both for the case that a return map has been computed by one-dimensional manifold learning and for the case that a tree map has been defined as an intermmediate step.  
+       
+        """
         # Itinerary for single variable case
         itin = np.zeros(n+1)
         itin[0] = s
@@ -780,43 +714,77 @@ class PoincMap:
                 itin[i] = self.interpRM(itin[i-1])
         return itin
 
-#    def itineraryS(self, n, s):
-#        itin = np.full((n+1),None)
-#        itin[0] = np.asarray(s)
-#        for i in range(1, itin.shape[0]):
-#                if self.irpRM_s_s.x[0] <= itin[i-1] <= self.irpRM_s_s.x[-1]: # s lies within range of validity of s to s map
-#                    itin[i] = self.irpRM_s_s(itin[i])
-#                else: 
-#                    itin[i] = self.irpRM_r_s(self.irpRM_s_r(itin[i-1]))
-#        return itin
     def refl(self,a):
-        # Reflection for KS in antisymmetric domain
+        """
+        Apply half-cell translations for KSe in antisymmetric domain. These appear as reflection of odd Fourier modes.
+        Parameters:
+            a: 1D numpy array
+                contains Fourier modes representation of KSe field
+        Returns:
+            1D numpy array with the same shape as a, containing the reflection of a.
+        """
         aa = copy.deepcopy(a)
         aa[::2]=-aa[::2]
         return aa
     
     def isInReflFD(self,a):
-        # Checks if solution is in fundamendal domain (FD) for reflections (for KS in antisymmetric domain)
+        """
+        Checks if solution is in fundamendal domain (FD) for reflections (for KS in antisymmetric domain)
+        Parameters:
+            a: 1D numpy array
+                contains Fourier modes representation of KSe field
+        Returns:
+            Boolean.
+        """
         return a[2] >= 0
     
     def reflRed(self,a):
-        # Maps a point to fundamendal domain
+        """
+        Maps a point to fundamendal domain, i.e. reduces half-cell translation ('reflection') symmetry.
+        Parameters:
+            a: 1D numpy array
+                contains Fourier modes representation of KSe field
+        Returns:
+            1D numpy array with the same shape as a, containing the FD image of a.
+        """
         if self.isInReflFD(a):
             return a 
         else:
             return self.refl(a)
     
     def reflRedTraj(self,a):
-        # Maps all point in a trajectory (list) to fundamental domain
+        """
+        Maps all points in a trajectory to fundamental domain.
+        Parameters:
+            a: 2D numpy array [Np x N], where Np the number of points in the trajectory and N the state-space dimension
+               contains trajectory         
+        """
         return np.asarray([self.reflRed(aa) for aa in a])
     
     def reflTraj(self,a):
-        # Applies reflection operation to all points in a trajectory
+        """
+        Applies reflection operation to all points in a trajectory.
+        Parameters:
+            a: 2D numpy array [Np x N], where Np the number of points in the trajectory and N the state-space dimension
+               contains trajectory         
+        """
         return np.asarray([self.refl(aa) for aa in a])
 
     def computeNormS(self,q):
-        # Computes normalization factors and normalizes the data.
-        # Sets global variables self.norm_shift, self.norm.
+        """
+        Computes normalization factors and normalizes the re-embedded data.  Normalization is controlled by attributes:
+        sign_norm_q: +/-1
+            allows to change sign of data
+        qmax_1: boolean
+            whether to set max(q_i)=1. If qmax_1=True then qmin_0 is automatically set to True in order to ensure we construct a map of the unit interval.
+        qmin_0:
+            whether to set min(q_i)=0.
+        Parameters:
+            q: numpy array
+                Can be 1d or 2d. Contains the re-embedding coordinates of data generated by manifold learning.
+        Returns:
+            numpy array of the same shape as q, containing re-scaled data. Sets attributes norm_shift, norm which can be used by other functions (notably normS) to ensure proper normalization.
+        """
         # Create dummy variable to avoid changing value of input variable
         # Reconsider this step if memory becomes an issue
         dum = copy.deepcopy(q)
@@ -846,7 +814,14 @@ class PoincMap:
 
     
     def normS(self,q):
-        # Normalization for 2d manifold learning
+        """ 
+        Apply normalization to data generated by manifold learning. Uses attributes computed by computeNormS.
+        Parameters:
+            q: numpy array
+                Can be 1d or 2d. Contains the re-embedding coordinates of data generated by manifold learning.
+        Returns:
+            numpy array of the same shape as q, containing re-scaled data. 
+        """
         # Create dummy variable to avoid changing value of input variable
         # Reconsider this step if memory becomes an issue
         dum = copy.deepcopy(q)
@@ -868,7 +843,14 @@ class PoincMap:
         return dum
     
     def symb(self,s):
-        # Convert single value of s to symbol
+        """
+        Convert s value to symbol
+        Parameters:
+            s: float
+                Coordinate used to parameterize map
+            Notes:
+                The position of the critical points is read from attribute sc. The grammar has to be of the form [0,1,...].
+        """
         smb = self.sc.size
         for i in range(0,self.sc.size):
             if s < self.sc[i]:
@@ -876,28 +858,48 @@ class PoincMap:
         return smb
 
     def s2symb(self,itin):
-        # Converts itinerary to symbol
+        """
+        Converts itinerary to symbol
+        Parameters:
+            itin: 1d array or list
+                Contains s values (see symb).
+        Returns:
+            list of integers the same length as itin.
+        """
         return [self.symb(s) for s in itin]
 
     def eps_parity_single(self,symb):
-        # Parity of single symbol. Requires having defined self.orient_preserv which should store 
-        # orientation preserving branches
+        """
+         Parity of single symbol. Requires having defined attribute orient_preserv to store orientation preserving branches, e.g. [1,3,...].
+         Parameters:
+            symb: integer
+         Returns: +/-1
+        """
         if symb in self.orient_preserv:
             return 1
         else:
             return -1
     
     def eps_parity(self,seq):
-        # Parity of symbolic sequence. Requires having defined self.orient_preserv which should store 
-        # orientation preserving branches
+        """
+        Parity of symbolic sequence. Requires having defined self.orient_preserv which should store orientation preserving branches, e.g. [1,3,...].
+        Parameters:
+            seq: list of integers
+        Returns: list containing +/-1 of the same shape as seq
+            
+        """
         orient = [self.eps_parity_single(symb) for symb in seq]
         return np.prod(orient)
         
     def is_spatially_ordered(self,seq1,seq2):
-        # Returns true if seq1, seq2 are spatially ordered.
-        # Based on Gilmore and Lefrance "Topology of chaos" book.
-        # First check if we are dealing with the trivial case 
-        # that the first symbol of the two sequences differs
+        """
+        Returns true if seq1, seq2 are spatially ordered. Based on Gilmore and Lefrance "Topology of chaos" book. 
+        Parameters:
+            seq1, seq2: lists of integers
+        Returns:
+            boolean
+        """
+        #First check if we are dealing with the trivial case that the first symbol of the two sequences differs
         if seq1[0] < seq2[0]:
             return True
         # First decompose seq_i to Lambda s_i, where Lambda is the common part and s_i is the first symbol in which 
@@ -912,8 +914,16 @@ class PoincMap:
             return False
     
     def admis_crit_unimodal(self,seq, knead):
-        # Admissibility criterion for periodic orbit point of bimodal map for a given symbolic sequence seq.
-        # It is called by is_admis_unimodal
+        """
+        Admissibility criterion for periodic orbit point of bimodal map corresponding to symbolic sequence seq. It is called by is_admis_unimodal.
+        Parameters:
+            seq: list of integers
+                sequence of symbols representing periodic point
+            knead: list of integers
+                kneading sequence
+            Returns: 
+                boolean
+        """
         seq1=copy.deepcopy(seq)
         if len(knead)<len(seq1):
             raise Exception("kneading sequence need to be longer than PO")
@@ -923,9 +933,14 @@ class PoincMap:
         return self.is_spatially_ordered(seq1,knead[0:len(seq1)]) # orbit is admissible if seq<knead
     
     def is_admis_unimodal(self,po,knead):
-        # Returns true if periodic orbit of a bimodal map is admissible
-        # It is now obsolete since is_admis handles n-modal map case, 
-        # but can be used for verification purposes
+        """
+        Returns true if periodic orbit of a bimodal map is admissible. It is now obsolete since is_admis handles n-modal map case, but can be used for verification purposes.
+        Parameters:
+            po: list of integers
+                symbolic sequence of periodic orbit
+            knead: list of integers 
+                kneading sequence
+        """
         N = len(self.alphabet) # Number of letters in the alphabet
         if po == [0]:
             return self.zero_admis
@@ -937,9 +952,20 @@ class PoincMap:
             return self.admis_crit_unimodal(poPts[-1],knead) # Determine if right-most orbit point is admissible
         
     def is_admis(self,po, knead):
-        # Check admissibility of periodic orbit for n-modal map (n is the number of critical points, N=n+1 is the number of letters in the alphabet)
-        # knead is a list of kneading sequences of length n
-        # Algorithm is based on K.T. Hansen's PhD thesis
+        """
+        Check admissibility of periodic orbit for n-modal map (n is the number of critical points, N=n+1 is the number of letters in the alphabet)
+        knead is a list of kneading sequences of length n
+        Algorithm is based on K.T. Hansen's PhD thesis http://chaosbook.org/projects/KTHansen/thesis
+        Parameters:
+            po: list of integers
+                symbolic sequence of periodic orbit
+            knead: list of lists of integers 
+                kneading sequences
+        Returns:
+            Boolean
+        Notes:
+            In present form assumes that odd symbols correspond to orientation reversing branches and even symbols to orientation preserving. If not, change sign of manifold learning coordinates. Could be generalized to take into account self.orient_preserv.
+        """
         N = len(self.alphabet)
         if po == [0]:
             return self.zero_admis
@@ -960,18 +986,37 @@ class PoincMap:
         return True # If we reached this point without exiting then the orbit is admissible
     
     def theta_inv(self,seq,cp=1):
-        # invariant coordinate theta for a symbolic sequence
-        # cp is number of copies of the sequence (used to ensure convergence for periodic orbits)
+        """
+        Computes invariant coordinate theta for a symbolic sequence. See Gilmore and Lefrance "Topology of chaos" book.
+        Parameters:
+            seq: list of integers
+                symbolic sequence
+            cp: integer 
+                number of copies of the sequence (used to ensure convergence for periodic orbits)
+        Returns:
+            float
+        """
         N = len(self.alphabet) # Number of letters in the alphabet
         seq1 = seq*cp # Replicate basic block
         return np.sum([self.ti(seq1[0:i+1])/N**(i+1) for i in range(0,len(seq1)+1)])
 
     def thetaApplyPoints(self,pts):
-        # Convenience function that applies theta_inv on a list of symbolic sequences (usually list of periodic points)
+        """
+        Convenience function that applies theta_inv on a list of symbolic sequences (usually list of periodic points)
+        Parameters:
+            pts: list of lists of integers
+        Returns:
+            List of floats
+        """
         return [self.theta_inv(cycPoint) for cycPoint in pts]
 
     def ti(self,seq):
-        # Function returning partial weights used to find theta_inv
+        """
+        Function returning partial weights used to find theta_inv.
+        Parameters:
+            seq: list of integers
+                symbolic sequence
+        """
         N = len(self.alphabet) # Number of letters in the alphabet
         if self.eps_parity(seq[0:-1]) == 1: 
             return seq[-1]
@@ -979,13 +1024,29 @@ class PoincMap:
             return (N-1)-seq[-1]
         
     def sort_seq_spatial(self,seqs,cp=1):
+        """
+        Sorts symbolic sequences by invariant coordinate theta.
+        Parameters:
+            seqs: list of list of integers
+                each list represents a symbolic sequence
+        Note:
+            There is no value returned. Instead, seqs is sorted in place.
+        """
         N = len(self.alphabet) # Number of letters in the alphabet
         # Sorts symbolic sequences by invariant coordinate theta.
         seqs.sort(key= lambda seq : self.theta_inv(seq,cp=cp))
         
     def duval(self,n):
-        # Duval's algorithm to generate all necklashes of up to length n (with N = len(self.alphabet) symbols)
-        # These are equivalent to all prime cycles up to length n, in lexicographical order.
+        """
+        Duval's algorithm to generate all necklashes of up to length n (with N = len(self.alphabet) symbols). These are equivalent to all prime cycles up to length n, in lexicographical order.
+        Parameters:
+            n: integer
+                maximum length of generated necklaces
+        Returns:
+            list of lists
+        Notes:
+            Number of symbols is determined by len(self.alphabet).
+        """
         N = len(self.alphabet) # Number of letters in the alphabet
         lw = [] # List of Lyndon words
         w = [None]*n # Create empty list of length n
@@ -1003,29 +1064,54 @@ class PoincMap:
         return lw
     
     def primeCycles(self,n):
-        # Compute all prime cycles of length n (lexicographical ordering).
-        # Uses Duval's algorithm to compute all cycles up to length n and then 
-        # select cycles of length exactly n, so it is somewhat inneficient
-        # but runs very fast up to length 10
+        """
+        Compute all prime cycles of length n (lexicographical ordering). Uses Duval's algorithm to compute all cycles up to length n and then select cycles of length exactly n, so it is somewhat inneficient but runs very fast up to length 10
+        Parameters:
+            n: integer
+                topological length
+        Returns:
+            List of lists
+        """
         N = len(self.alphabet) # Number of letters in the alphabet
         cycl = self.duval(n) # Generate all cycles up to n
         return [cyc for cyc in cycl if len(cyc)==n]
 
     def primeCyclesAdmis(self,n,knead):
-        # Returns all admissible cycles of length n
+        """
+        Returns all admissible cycles of length n
+        Parameters:
+            n: integer
+                topological length
+            knead: list of integers
+                kneading sequence
+        """
         N = len(self.alphabet) # Number of letters in the alphabet
         cycl = self.primeCycles(n)
         return [cyc for cyc in cycl if self.is_admis(cyc,knead)]
     
     def primeCyclesNonAdmis(self,n,knead):
-        # Returns all non-admissible cycles of length n
+        """
+        Returns all non-admissible cycles of length n
+        Parameters:
+            n: integer
+                topological length
+            knead: list of integers
+                kneading sequence
+        Returns:
+            list of lists
+        """
         N = len(self.alphabet) # Number of letters in the alphabet
         cycl = self.primeCycles(n)
         return [cyc for cyc in cycl if not self.is_admis(cyc,knead)]
     
     def cycPerm(self,seq):
-        # Returns all cyclic permutations of a given sequence.
-        # Can be used to generate all points on a cycle.
+        """
+        Returns all cyclic permutations of a given sequence. Can be used to generate all points of a cycle.
+        Parameters:
+            seq: list of integers
+        Returns:
+            List of lists of integers
+        """
         s=np.asarray(seq)
         lst=[seq]
         for i in range(1,len(seq)):
@@ -1033,19 +1119,42 @@ class PoincMap:
         return lst
 
     def periodicPointsLength(self,n):
-        # Return symbolic sequences corresponding to all points on all prime cycles of length n
-        # Sort the resulting least spatially
+        """
+        Return symbolic sequences corresponding to all points on all prime cycles of length n
+        Sort the resulting least spatially.
+        Parameters:
+            n: integer
+                topological length
+        Returns:
+            list of lists of integers
+        """
         lst = [cycPoint for cyc in self.primeCycles(n) for cycPoint in self.cycPerm(cyc)]
         self.sort_seq_spatial(lst, cp=10) # Sort spatially
         return lst
 
     def kneadValues(self,knead):
-        # Return the kneading values for a list o kneading sequences
+        """
+        Return the kneading values (invariant coordinates) for a list o kneading sequences.
+        Parameters:
+            knead: list of lists of integers
+                kneading sequences
+        Returns:
+            list of floats
+        """
         return [self.theta_inv(kn,cp=1) for kn in knead]
 
 
     def partDepth(self,n):
-        # Computes all sub-intervals at length n. Not useful as these are not in 1-1 correspondance with admissible periodic orbits of length n.
+        """
+        Computes all sub-intervals at length n. Not useful as these are not in 1-1 correspondance with admissible periodic orbits of length n.
+        Parameters:
+            n: integer
+                topological length
+        Returns: 
+            list of lists of floats
+        Notes:
+            Uses inv_map attribute which must be set.
+        """
         if n>1:
                 result = np.asarray([self.inv_map[i](q) for i in self.alphabet for q in self.partDepth(n-1)])
                 result = result[~np.isnan(result)] # Useful if self.inv_map has fill_value='NaN'
@@ -1058,11 +1167,24 @@ class PoincMap:
         return result
 
     def list_is_spatially_ordered(self,lst):
-        # Determines if a list of symbolic sequences is spatially ordered
+        """
+        Determines if a list of symbolic sequences is spatially ordered
+        Parameters:
+            lst: list of lists of integers
+        Returns:
+            boolean
+        """
         return np.all([self.is_spatially_ordered(lst[i],lst[i+1]) for i in range(len(lst)-1)])
 
     def partSymbDepth(self, n, cp=1):
-        # Return all possible symbolic sequences of length n, spatially ordered
+        """
+        Return all possible symbolic sequences of length n, spatially ordered
+        Parameters:
+            n: integer
+                topological length
+            cp: integer, optional
+                number of copies, to ensure convergence for periodic orbits
+        """
         # First compute all combinations of letters in the alphabet of length n:
         combs = list(itertools.product(self.alphabet, repeat=n))
         combs = [list(s) for s in combs] # Convert inner level to list
@@ -1071,15 +1193,27 @@ class PoincMap:
             raise Exception("Ordering failed, increase number of copies of basic sequence by setting cp argument")
         return combs
 
-    def finiteIrv(self,n, order='spat', cp=1):
-        # Returns all intervals at depth n (including non-prime ones). 
-        # order:    'spat' for spatial ordering, 'lex' for lexicographical
+    def finiteIrv(self,n cp=1):
+        """
+        Returns all intervals at depth n (including non-prime ones). 
+        Parameters:
+            n: integer
+                topological length
+            cp: integer, optional
+                number of copies to be used for ordering of periodic sequences, to ensure convergence. 
+        """
         lst = [[self.list2str(i), np.diff(self.seq2irv(i))[0]>0] for i in self.partSymbDepth(n,cp)]
         return lst
 
     def seq2irvUnim(self, seq):
-        # Returns interval associated with symbolic sequence
-        # Uses interval arithmetic from Gillmore and Lefrance book, Chapter 2.
+        """
+        Returns interval associated with symbolic sequence for unimodal maps. Uses interval arithmetic from Gillmore and Lefrance book, Chapter 2.
+        Parameters:
+            seq: list of integers
+                symbolic sequence
+        Return:
+            list of floats of length 2.
+        """
         if seq==[0]:
             q = np.asarray([self.interpRM(self.interpRM(self.sc[0])), self.sc[0]]).flatten()
             #print(''.join(map(str, seq)), "Length",q[1]-q[0]) 
