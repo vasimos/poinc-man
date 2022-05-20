@@ -1193,7 +1193,7 @@ class PoincMap:
             raise Exception("Ordering failed, increase number of copies of basic sequence by setting cp argument")
         return combs
 
-    def finiteIrv(self,n cp=1):
+    def finiteIrv(self,n, cp=1):
         """
         Returns all intervals at depth n (including non-prime ones). 
         Parameters:
@@ -1405,16 +1405,18 @@ class PoincMap:
                     #yguess = np.asarray([np.fft.irfft(np.fft.rfft(irp(tgrid))[:200],n=tgrid.shape[0]) for irp in irpPOguess]) # interpolate in regular grid and chop high-fourier modes 
         return [POtseg, POseg]
            
-    def unstManif1d(self, POlabel, eps0, Npoints, Npoinc, TpoincMean, atol=1e-9, rtol=1e-6):
+    def unstManif1d(self, POlabel, eps0, Npoints, Npoinc, TpoincMean, atol=1e-9, rtol=1e-6, tol=1e-6, max_nodes=30000):
         # Compute part of unstable manifold of periodic orbit with symbolic sequence POlabel. 
         # It first recomputes the periodic orbit, computes its Jacobian, and then initializes trajectories on the local linear unstable manifold.
         # eps0: minimum distance of initial conditions from periodic point (on the unstable manifold
         # Npoints: number of points to use for the parameterization
         # Npoinc: number of intersection with Poincare section (estimate)
         # TpoincMean: mean time between intersections with Poincare section
-        POguess = self.guessMultiVarS(self.equation, self.cycleIC(POlabel),POlabel , TpoincMean, atol=atol, rtol=rtol)
+        # tol: tolerance for solve_bvp
+        # max_nodes: number of nodes for solve_bvp
+        POguess = self.guessMultiVarS(self.equation, self.cycleIC(POlabel), POlabel, TpoincMean, atol=atol, rtol=rtol)
         TpGuess = POguess[0][-1]
-        solPO = solve_bvp(self.equation.f_bvp_ps, self.bcPO, POguess[0]/TpGuess, POguess[1], p=[TpGuess], tol=1e-6, verbose=2, max_nodes=30000) # Remove adhoc parameters?
+        solPO = solve_bvp(self.equation.f_bvp_ps, self.bcPO, POguess[0]/TpGuess, POguess[1], p=[TpGuess], tol=tol, verbose=2, max_nodes=max_nodes) # Remove adhoc parameters?
         #Tp = solPO.p[0]
         jac = self.floquet_bvp(solPO, jac_tol=1e-6, timer=True, jac_sample=1)
         eig = np.linalg.eig(jac)
