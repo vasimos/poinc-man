@@ -27,9 +27,10 @@ save_transform = False
 
 LLE = True # use LLE or isomap
 
-save_cycles = False
+save_cycles = True
 load_cycles = False
-comp_stab = False # Compute stability of cycles (takes substantial time)
+comp_stab = True # Compute stability of cycles (takes substantial time)
+viz_long_cycles = False # Vizualize some of the longer cycles (we would need to compute them first)
 
 raster = True # Whether to rasterize heavy plots 
 if raster:
@@ -264,20 +265,20 @@ axes[1].set_rasterization_zorder(1)
 axes[2].set_rasterization_zorder(1)
 
 plt.sca(axes[1])
-plt.scatter(s,r, c = s-s.min(), cmap='inferno',  edgecolor='', s=s0, zorder=zord, marker='.')
+plt.scatter(s,r, c = s-s.min(), cmap='inferno',  edgecolor=None, s=s0, zorder=zord, marker='.')
 plt.xlabel(r'$q_1$')
 plt.ylabel(r'$q_2$')
 plt.text(-0.4,1,r'(b)')
 
 plt.sca(axes[0])
-plt.scatter(poincareSectionData[:,0], poincareSectionData[:,2], c = s-s.min(), cmap='inferno', edgecolor='', s=s0, marker='.', zorder=zord)
+plt.scatter(poincareSectionData[:,0], poincareSectionData[:,2], c = s-s.min(), cmap='inferno', edgecolor=None, s=s0, marker='.', zorder=zord)
 plt.xlabel('$a_{1}$')
 plt.ylabel('$a_{3}$')
 plt.text(-0.3,.71,r'(a)')
 
 plt.sca(axes[2])
 #plt.plot(s[:-1],s[1:],'.',markersize=0.5)
-plt.scatter(s[:-1], s[1:], c = s[:-1]-s.min(), cmap='inferno',edgecolor='', s=s0, zorder=zord, marker='.')
+plt.scatter(s[:-1], s[1:], c = s[:-1]-s.min(), cmap='inferno',edgecolor=None, s=s0, zorder=zord, marker='.')
 plt.xlabel(r'$q_{1,n}$')
 plt.ylabel(r'$q_{1,n+1}$')
 plt.text(-0.4,1,r'(c)')
@@ -344,7 +345,7 @@ axes[2].set_rasterization_zorder(1)
 axes[3].set_rasterization_zorder(1)
 
 plt.sca(axes[3])
-plt.scatter(pmap.sorted_s_s[:,0], pmap.sorted_s_s[:,1], marker='.',edgecolor='', s=s0, zorder=zord)
+plt.scatter(pmap.sorted_s_s[:,0], pmap.sorted_s_s[:,1], marker='.',edgecolor=None, s=s0, zorder=zord)
 
 
 plt.vlines(pmap.sc,0,1, color='0.5',linestyles='--')
@@ -358,7 +359,7 @@ plt.xticks([0,0.5,1])
 plt.text(-0.5,1.1,r'(d)')
 
 plt.sca(axes[0])
-plt.scatter(s_s[:,0], s_s[:,1],marker='.', edgecolor='', s=s0, zorder=zord)
+plt.scatter(s_s[:,0], s_s[:,1],marker='.', edgecolor=None, s=s0, zorder=zord)
 
 plt.xlabel(r'$q_{1,n}$')
 plt.ylabel(r'$q_{1,n+1}$')
@@ -367,15 +368,15 @@ plt.xlim(0,1); plt.xticks([0,0.5,1])
 plt.text(-0.45,1.1,r'(a)')
 
 plt.sca(axes[1])
-plt.scatter(s_r[:,0], s_r[:,1],marker='.', edgecolor='', s=s0, zorder=zord)
+plt.scatter(s_r[:,0], s_r[:,1],marker='.', edgecolor=None, s=s0, zorder=zord)
 
-plt.xlabel(r'$q_1_n$')
+plt.xlabel(r'$q_{1,n}$')
 plt.ylabel(r'$q_{2,n+1}$')
 plt.title(r'$h$')
 plt.text(-0.1,.2,r'(b)')
 
 plt.sca(axes[2])
-plt.scatter(r_s[:,0], r_s[:,1],marker='.', edgecolor='', s=s0, zorder=zord)
+plt.scatter(r_s[:,0], r_s[:,1],marker='.', edgecolor=None, s=s0, zorder=zord)
 
 plt.xlabel(r'$q_{2,n}$')
 plt.ylabel(r'$q_{1,n+1}$')
@@ -400,13 +401,13 @@ fig, axes = plt.subplots(nrows=2, ncols=1,figsize=(0.5*fwidth, 2.*fheight))
 plt.sca(axes[0])
 axes[0].set_rasterization_zorder(1)
 
-plt.scatter(s[pmap.idx_s_valid],r[pmap.idx_s_valid], c = s[pmap.idx_s_valid]-s[pmap.idx_s_valid].min(), cmap='inferno', edgecolor='', s=2*s0, marker='.', zorder=zord)
+plt.scatter(s[pmap.idx_s_valid],r[pmap.idx_s_valid], c = s[pmap.idx_s_valid]-s[pmap.idx_s_valid].min(), cmap='inferno', edgecolor=None, s=2*s0, marker='.', zorder=zord)
 
 clb1 = plt.colorbar()
 clb1.set_label(r'$q_1$')
 
 
-plt.scatter(s[pmap.idx_r_valid],r[pmap.idx_r_valid], c = r[pmap.idx_r_valid]-r[pmap.idx_r_valid].min(), cmap='winter', edgecolor='', s=2*s0, marker='.', zorder=zord)
+plt.scatter(s[pmap.idx_r_valid],r[pmap.idx_r_valid], c = r[pmap.idx_r_valid]-r[pmap.idx_r_valid].min(), cmap='winter', edgecolor=None, s=2*s0, marker='.', zorder=zord)
 
 plt.ylim(ymax=1.2)
 
@@ -424,9 +425,9 @@ plt.sca(axes[1])
 
 axes[1].set_rasterization_zorder(1)
 
-plt.scatter(poincareSectionData[pmap.idx_s_valid,0][0], poincareSectionData[pmap.idx_s_valid,2][0], c = s[pmap.idx_s_valid]-s[pmap.idx_s_valid].min(), cmap='inferno', edgecolor='', s=2*s0, marker='.', zorder=zord)
+plt.scatter(poincareSectionData[pmap.idx_s_valid,0][0], poincareSectionData[pmap.idx_s_valid,2][0], c = s[pmap.idx_s_valid]-s[pmap.idx_s_valid].min(), cmap='inferno', edgecolor=None, s=2*s0, marker='.', zorder=zord)
 
-plt.scatter(poincareSectionData[pmap.idx_r_valid,0][0], poincareSectionData[pmap.idx_r_valid,2][0], c = r[pmap.idx_r_valid]-r[pmap.idx_r_valid].min(), cmap='winter', edgecolor='', s=2*s0, marker='.', zorder=zord)
+plt.scatter(poincareSectionData[pmap.idx_r_valid,0][0], poincareSectionData[pmap.idx_r_valid,2][0], c = r[pmap.idx_r_valid]-r[pmap.idx_r_valid].min(), cmap='winter', edgecolor=None, s=2*s0, marker='.', zorder=zord)
 
 clb2 = plt.colorbar()
 clb2.set_label(r'$q_2$')
@@ -451,8 +452,8 @@ ax1 = plt.axes([0,0,1,1],label='ax1')
 ip = InsetPosition(axes[0],[0.23,0.59,0.54,0.31])
 ax1.set_axes_locator(ip)
 ax1.set_rasterization_zorder(1)
-plt.scatter(s[pmap.idx_s_valid],r[pmap.idx_s_valid], c = s[pmap.idx_s_valid]-s[pmap.idx_s_valid].min(), cmap='inferno', marker='.', edgecolor='', s=2*s0, zorder=zord)
-plt.scatter(s[pmap.idx_r_valid],r[pmap.idx_r_valid], c = r[pmap.idx_r_valid]-r[pmap.idx_r_valid].min(), cmap='winter', edgecolor='', s=2*s0, marker='.', zorder=zord)
+plt.scatter(s[pmap.idx_s_valid],r[pmap.idx_s_valid], c = s[pmap.idx_s_valid]-s[pmap.idx_s_valid].min(), cmap='inferno', marker='.', edgecolor=None, s=2*s0, zorder=zord)
+plt.scatter(s[pmap.idx_r_valid],r[pmap.idx_r_valid], c = r[pmap.idx_r_valid]-r[pmap.idx_r_valid].min(), cmap='winter', edgecolor=None, s=2*s0, marker='.', zorder=zord)
 ax1.set_xlim(0.45,0.53)
 ax1.set_ylim(0.1,0.21)
 ax1.yaxis.tick_right()
@@ -472,8 +473,8 @@ ax2 = plt.axes([0,0,1,1],label='ax2')
 ip = InsetPosition(axes[1],[0.2,0.12,0.6,0.35])
 ax2.set_axes_locator(ip)
 ax2.set_rasterization_zorder(1)
-ax2.scatter(poincareSectionData[pmap.idx_s_valid,0][0], poincareSectionData[pmap.idx_s_valid,2][0], c = s[pmap.idx_s_valid]-s[pmap.idx_s_valid].min(), cmap='inferno', edgecolor='', s=2*s0, marker='.', zorder=zord)
-ax2.scatter(poincareSectionData[pmap.idx_r_valid,0][0], poincareSectionData[pmap.idx_r_valid,2][0], c = r[pmap.idx_r_valid]-r[pmap.idx_r_valid].min(), facecolor = r[pmap.idx_r_valid]-r[pmap.idx_r_valid].min(), cmap='winter', edgecolor='', s=2*s0, marker='.', zorder=zord)
+ax2.scatter(poincareSectionData[pmap.idx_s_valid,0][0], poincareSectionData[pmap.idx_s_valid,2][0], c = s[pmap.idx_s_valid]-s[pmap.idx_s_valid].min(), cmap='inferno', edgecolor=None, s=2*s0, marker='.', zorder=zord)
+ax2.scatter(poincareSectionData[pmap.idx_r_valid,0][0], poincareSectionData[pmap.idx_r_valid,2][0], c = r[pmap.idx_r_valid]-r[pmap.idx_r_valid].min(), facecolor = r[pmap.idx_r_valid]-r[pmap.idx_r_valid].min(), cmap='winter', edgecolor=None, s=2*s0, marker='.', zorder=zord)
 ax2.set_ylim(0.647,0.658)
 ax2.set_xlim(-0.105,-0.083)
 ax2.yaxis.tick_right()
@@ -511,7 +512,7 @@ else:
     
     rejectedCyc=[]
     
-    Ncyc = 10
+    Ncyc = 2
     
     for i in range (1,Ncyc+1):
         admCyc = pmap.primeCyclesAdmis(i,knead)
@@ -526,7 +527,7 @@ else:
             if cyc[-1] in [0,11]: # Check that no error occured (0), also accept error code 11 (warning about sub-interval not bounding solution).
                 cycArr = np.asarray([cyc],dtype=object)
                 cycDF = pd.DataFrame(cycArr,columns=pmap.col, index=[pmap.list2str(cyc[0])])
-                cyclesDF = cyclesDF.append(cycDF)
+                cyclesDF = pd.concat([cyclesDF, cycDF])#, ignore_index=True)
                 if save_cycles:
                     cyclesDF.to_pickle(data_dir+'/ks_cycles_nu_002973.pkl') # Save after each cycle computation
             else:
@@ -547,43 +548,44 @@ if np.max(margLambdaPos)>1:
 def cyclesFoundLen(n):
    return cyclesDF[cyclesDF.length==n].index
 
-fig, axes = plt.subplots(nrows=1, ncols=3,figsize=(fwidth, 0.75*fheight))
+if viz_long_cycles:
+    fig, axes = plt.subplots(nrows=1, ncols=3,figsize=(fwidth, 0.75*fheight))
 
-plt.sca(axes[0])
-axes[0].set_rasterization_zorder(3)
+    plt.sca(axes[0])
+    axes[0].set_rasterization_zorder(3)
 
-plt.plot(pmap.sorted_s_s[:,0], pmap.sorted_s_s[:,1], markersize=0.03, marker='.', zorder=1)
+    plt.plot(pmap.sorted_s_s[:,0], pmap.sorted_s_s[:,1], markersize=0.03, marker='.', zorder=1)
 
-sTab = np.linspace(s_r[:,0].min(),s_s[:,0].max(),200)
+    sTab = np.linspace(s_r[:,0].min(),s_s[:,0].max(),200)
 
-plt.plot(sTab,sTab, zorder=0, c='k')
+    plt.plot(sTab,sTab, zorder=0, c='k')
 
-plt.xlabel(r'$q_{1,n}$')
-plt.ylabel(r'$q_{1,n+1}$')
+    plt.xlabel(r'$q_{1,n}$')
+    plt.ylabel(r'$q_{1,n+1}$')
 
-plt.text(-0.35,1,r'(a)')
+    plt.text(-0.35,1,r'(a)')
 
-pmap.plotItinS(pmap.findCycleRM(pmap.str2list('13231323')), c='r',cc='r', s=0, periodic=True, zorder=2)
+    pmap.plotItinS(pmap.findCycleRM(pmap.str2list('13231323')), c='r',cc='r', s=0, periodic=True, zorder=2)
 
-pmap.plotItinS(pmap.findCycleRM(pmap.str2list('03231323')), c='g',cc='g', s=0, linestyles = 'dashed', periodic=True, zorder=2)
+    pmap.plotItinS(pmap.findCycleRM(pmap.str2list('03231323')), c='g',cc='g', s=0, linestyles = 'dashed', periodic=True, zorder=2)
 
-plt.sca(axes[1])
+    plt.sca(axes[1])
 
-plt.plot(cyclesDF.loc['13231323']['data'][2], cyclesDF.loc['13231323']['data'][3],'r-')
-plt.xlabel(r'$a_3$')
-plt.ylabel(r'$a_4$')
-plt.text(-1.9,-0.7,r'(b)')
+    plt.plot(cyclesDF.loc['13231323']['data'][2], cyclesDF.loc['13231323']['data'][3],'r-')
+    plt.xlabel(r'$a_3$')
+    plt.ylabel(r'$a_4$')
+    plt.text(-1.9,-0.7,r'(b)')
 
-plt.sca(axes[2])
+    plt.sca(axes[2])
 
-plt.plot(cyclesDF.loc['03231323']['data'][2], cyclesDF.loc['03231323']['data'][3],'g--')
-plt.xlabel(r'$a_3$')
-plt.ylabel(r'$a_4$')
-plt.text(-1.9,-0.7,r'(c)')
+    plt.plot(cyclesDF.loc['03231323']['data'][2], cyclesDF.loc['03231323']['data'][3],'g--')
+    plt.xlabel(r'$a_3$')
+    plt.ylabel(r'$a_4$')
+    plt.text(-1.9,-0.7,r'(c)')
 
-fig.subplots_adjust(top=0.98, bottom=0.2, left=0.07, right=0.97, hspace=.2, wspace=0.4)
+    fig.subplots_adjust(top=0.98, bottom=0.2, left=0.07, right=0.97, hspace=.2, wspace=0.4)
 
-plt.savefig(fig_dir+'ks_002973_cycles.pdf', dpi=600)
+    plt.savefig(fig_dir+'ks_002973_cycles.pdf', dpi=600)
 
 
 # Find unstable manifold
@@ -606,7 +608,7 @@ fig, axes = plt.subplots(nrows=1, ncols=1,figsize=(0.5*fwidth, 0.75*fheight))
 
 axes.set_rasterization_zorder(3)
 
-plt.scatter(poincareSectionData[:,0], poincareSectionData[:,2], c = '0.6', edgecolor='', s=4*s0, marker='.', zorder=zord)
+plt.scatter(poincareSectionData[:,0], poincareSectionData[:,2], c = '0.6', edgecolor=None, s=4*s0, marker='.', zorder=zord)
 plt.xlabel('$a_{1}$')
 plt.ylabel('$a_{3}$')
 

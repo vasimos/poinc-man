@@ -2,6 +2,8 @@ import  equation
 from  poincman import  poincman
 import  numpy  as np
 from  sklearn  import  manifold
+import matplotlib
+matplotlib.use('macosx')
 import  matplotlib  as mpl
 import  matplotlib.pyplot  as plt
 import time
@@ -124,7 +126,7 @@ for pd in pData:
     
     r = np.sqrt(pd[:,0]**2+pd[:,1]**2) # radial coordinate
 
-    plt.scatter(r, pd[:,2], marker='o', edgecolor='', facecolors=clist[idum], s=1, c=clist[idum], zorder=zord) # Plot a the section in (r,z) 
+    plt.scatter(r, pd[:,2], marker='o', edgecolor=None, facecolors=clist[idum], s=1, c=clist[idum], zorder=zord) # Plot a the section in (r,z) 
 
     if idum==0:
         plt.text(3.5,0.18,'(b)')
@@ -139,7 +141,7 @@ for pd in pData:
     # Plot the return map using the radial coordinate
     ax0 = plt.subplot2grid((nrows, ncols),(idum,3))
     ax0.set_rasterization_zorder(1)
-    plt.scatter(r[:-1], r[1:], marker='o', edgecolor='', facecolors=clist[idum], s=1, c=clist[idum], zorder=zord)
+    plt.scatter(r[:-1], r[1:], marker='o', edgecolor=None, facecolors=clist[idum], s=1, c=clist[idum], zorder=zord)
     #plt.plot(r[:-1], r[1:], '.',  markersize=0.1, c=clist[idum], zorder=zord)
 
     if idum==0: # find kneading sequence
@@ -184,7 +186,7 @@ for pd in pData:
            
             r = np.sqrt(pDataIns[:,0]**2+pDataIns[:,1]**2) # radial coordinate
             #axIns.plot(r[:-1], r[1:],'.',markersize=1, color=clist[0])
-            axIns.scatter(r[:-1], r[1:], c=clist[0], marker='o', edgecolor='', facecolors=clist[idum], s=1,  zorder=zord)
+            axIns.scatter(r[:-1], r[1:], c=clist[0], marker='o', edgecolor=None, facecolors=clist[idum], s=1,  zorder=zord)
             axIns.set_xlim(7.7105, 7.713)
             axIns.set_ylim(12.10019, 12.1001917)
             axIns.tick_params(bottom=False, labelbottom=False,left=False,labelleft=False)
@@ -198,7 +200,6 @@ for pd in pData:
             plt.sca(fig1.gca()) # Switch to first figure
                 
     idum = idum+1
-
 
 # Second figure
 fig2, axes = plt.subplots(nrows=1, ncols=2,figsize=(0.5*fwidth, 0.2*fwidth))
@@ -254,7 +255,7 @@ for p, pd in zip(poinc, pData):
     plt.sca(fig1.gca()) # Switch to first figure
     ax3=plt.subplot2grid((nrows, ncols),(idum,4))
     ax3.set_rasterization_zorder(1)
-    plt.scatter(s[:-1], s[1:], marker='o', edgecolor='', facecolors=clist[idum], s=1, c=clist[idum], zorder=zord) # s_n, s_{n+1}
+    plt.scatter(s[:-1], s[1:], marker='o', edgecolor=None, facecolors=clist[idum], s=1, c=clist[idum], zorder=zord) # s_n, s_{n+1}
     slim = 1.1*np.abs(s).max()
 
     plt.xlim(-0.1,slim)
@@ -369,4 +370,5 @@ fig1.savefig('rossler_maps.pdf', dpi=600)
 fig2.subplots_adjust(top=0.95, bottom=0.3, left=0.12, right=0.97, hspace=.7,wspace=0.8)
 fig2.savefig('rossler_s.pdf', dpi=600)
 
+matplotlib.use('macosx')
 

@@ -573,7 +573,7 @@ class PoincMap:
         if guess_from_RM_shadowing:
             sPOrm = self.cycleICshad(seq, self.seqChaotic)                
         else:                
-            if not np.all(np.product(self.fixedPointRM(self.cycleIrvs(seq),len(seq)),axis=1)<0):
+            if not np.all(np.prod(self.fixedPointRM(self.cycleIrvs(seq),len(seq)),axis=1)<0):
                 print(f"{Fore.MAGENTA}Generated intervals do not bound a solution. Check cycle admissibility for", ''.join(map(str, seq)) , f"{Style.RESET_ALL}")
                 err_code = 11 # Issue warning and change error code but do not terminate
                 refine_RM = False # Do not try to refine RM solution, just use IC from intervals

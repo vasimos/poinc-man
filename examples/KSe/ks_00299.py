@@ -25,8 +25,8 @@ save_transform = False
 
 LLE = True # use LLE or isomap
 
-save_cycles = False
-load_cycles = True
+save_cycles = True
+load_cycles = False
 
 raster = True # Whether to rasterize heavy plots 
 if raster:
@@ -178,13 +178,13 @@ knmax = int(B.max()-1)
 print(knmin)
 
 if LLE:
-    embedding = manifold.LocallyLinearEmbedding(n_neighbors=knmin, n_components =2, random_state=1)
+    embedding = manifold.LocallyLinearEmbedding(n_neighbors=knmin, n_components =1, random_state=1)
 else: # Use isomap
     embedding = manifold.Isomap(n_neighbors=knmin, n_components=1)
 
 pmap.embedding = embedding # Set embedding attribute in mapper
 
-s,r = pmap.embedding.fit_transform(poincareSectionData).transpose()
+s = pmap.embedding.fit_transform(poincareSectionData)[:,0]#.transpose()
 
 pmap.sign_norm_q = 1 # Choose sign for normalization of transform
 pmap.qmin_0 = True
@@ -192,7 +192,7 @@ pmap.qmax_1 = True
 
 s = pmap.computeNormS(s)
 
-np.save('./ks_00299_data/ks_00299_LLE.npy',np.asarray([s,r]))
+np.save('./ks_00299_data/ks_00299_LLE.npy',np.asarray([s]))
 
 pmap.s = s
 
@@ -316,13 +316,13 @@ axes[2].set_rasterization_zorder(1)
 #plt.text(-0.4,1,r'(b)')
 
 plt.sca(axes[0])
-plt.scatter(poincareSectionDataOrig[:,0], poincareSectionDataOrig[:,2], c = s-s.min(), cmap='inferno', s=0.3, marker='o', edgecolor='', zorder=zord)
+plt.scatter(poincareSectionDataOrig[:,0], poincareSectionDataOrig[:,2], c = s-s.min(), cmap='inferno', s=0.3, marker='o', edgecolor=None, zorder=zord)
 plt.xlabel('$a_{1}$')
 plt.ylabel('$a_{3}$')
 plt.text(-0.28,.685,r'(a)')
 
 plt.sca(axes[1])
-plt.scatter(poincareSectionData[:,0], poincareSectionData[:,2], c = s-s.min(), cmap='inferno', marker='o', edgecolor='', s=0.3, zorder=zord)
+plt.scatter(poincareSectionData[:,0], poincareSectionData[:,2], c = s-s.min(), cmap='inferno', marker='o', edgecolor=None, s=0.3, zorder=zord)
 plt.xlabel('$a_{1}$')
 plt.ylabel('$a_{3}$')
 plt.xlim(xmax=0.07)
@@ -330,7 +330,7 @@ plt.text(-0.2,.685,r'(b)')
 
 plt.sca(axes[2])
 #plt.plot(s[:-1],s[1:],'.',markersize=0.5)
-plt.scatter(s[:-1], s[1:], c = s[:-1]-s.min(), cmap='inferno', marker='o', edgecolor='', s=0.3, zorder=zord)
+plt.scatter(s[:-1], s[1:], c = s[:-1]-s.min(), cmap='inferno', marker='o', edgecolor=None, s=0.3, zorder=zord)
 plt.xlabel(r'$q_{1,n}$')
 plt.ylabel(r'$q_{1,n+1}$')
 plt.text(-0.4,1,r'(c)')
@@ -359,7 +359,7 @@ ip = InsetPosition(axes[2],[0.38,0.6,0.4,0.33])
 axIns.set_axes_locator(ip)
 axIns.set_rasterization_zorder(1)
 
-axIns.scatter(s[:-1], s[1:], c = s[:-1]-s.min(), marker='o', edgecolor='', s=0.3,  zorder=zord, cmap='inferno')
+axIns.scatter(s[:-1], s[1:], c = s[:-1]-s.min(), marker='o', edgecolor=None, s=0.3,  zorder=zord, cmap='inferno')
 axIns.set_xlim(pmap.sc-0.017, pmap.sc+0.017)
 axIns.set_ylim(0.95, 1.02)
 axIns.tick_params(left=False,labelleft=False, right=True,labelright=True,labelsize=fontsize_inset)
@@ -373,7 +373,7 @@ ip = InsetPosition(axes[1],[0.38,0.13,0.35,0.31])
 axIns2.set_axes_locator(ip)
 axIns2.set_rasterization_zorder(1)
 
-axIns2.scatter(poincareSectionData[:,0], poincareSectionData[:,2], c = s-s.min(), cmap='inferno', marker='o', edgecolor='', s=0.3, zorder=zord)
+axIns2.scatter(poincareSectionData[:,0], poincareSectionData[:,2], c = s-s.min(), cmap='inferno', marker='o', edgecolor=None, s=0.3, zorder=zord)
 axIns2.set_xlim(-0.151, -0.135)
 axIns2.set_ylim(0.632, 0.64)
 axIns2.tick_params(left=False,labelleft=False, right=True,labelright=True,labelsize=fontsize_inset)
@@ -447,7 +447,7 @@ else:
             if cyc[-1] in [0,11]: # Check that no error occured (0), also accept error code 11 (warning about sub-interval not bounding solution).
                 cycArr = np.asarray([cyc],dtype=object)
                 cycDF = pd.DataFrame(cycArr,columns=pmap.col, index=[pmap.list2str(cyc[0])])
-                cyclesDF = cyclesDF.append(cycDF)
+                cyclesDF = pd.concat([cyclesDF, cycDF])#, ignore_index=True)
                 if save_cycles:
                     cyclesDF.to_pickle(data_dir+'ks_cycles_nu_00299_symRed_tol3_dirPoinc1.pkl') # Save after each cycle computation
             else:
@@ -478,7 +478,7 @@ fig, axes = plt.subplots(nrows=1, ncols=1,figsize=(0.5*fwidth, 0.75*fheight))
 #plt.sca(axes[0])
 axes.set_rasterization_zorder(3)
 
-plt.scatter(poincareSectionData[:,0], poincareSectionData[:,2], c = '0.6', edgecolor='', s=12, marker='.', zorder=zord)
+plt.scatter(poincareSectionData[:,0], poincareSectionData[:,2], c = '0.6', edgecolor=None, s=12, marker='.', zorder=zord)
 plt.xlabel('$a_{1}$')
 plt.ylabel('$a_{3}$')
 
@@ -512,7 +512,7 @@ ip = InsetPosition(axes,[0.59,0.14,0.4,0.33])
 axIns.set_axes_locator(ip)
 axIns.set_rasterization_zorder(1)
 
-axIns.scatter(poincareSectionData[:,0], poincareSectionData[:,2], c = '0.6', edgecolor='', s=30, marker='.', zorder=zord)
+axIns.scatter(poincareSectionData[:,0], poincareSectionData[:,2], c = '0.6', edgecolor=None, s=30, marker='.', zorder=zord)
 axIns.plot(sParamUM23[0](sTab23),sParamUM23[2](sTab23),'-', linewidth=1, zorder=zord+1)
 axIns.plot(sParamUM3[0](sTab3),sParamUM3[2](sTab3),'-', linewidth=1, zorder=zord+1)
 plt.scatter(pmap.reflRedTraj(cyclesDF.loc['01']['Poinc. points'])[:,0],pmap.reflRedTraj(cyclesDF.loc['01']['Poinc. points'])[:,2],c='tab:blue', s=14, marker='v', zorder=zord+2)
