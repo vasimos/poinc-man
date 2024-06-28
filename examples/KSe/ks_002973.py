@@ -499,7 +499,7 @@ TpoincMean = 0.44 # Mean time of return to Poincare section. This should be dete
 
 
 if load_cycles:
-    cyclesDF = pd.read_pickle(data_dir+'/ks_cycles_nu_002973_symRed_LLE_tol3.pkl')
+    cyclesDF = pd.read_pickle(data_dir+'/ks_cycles_nu_002973.pkl')
 else:
     #
     

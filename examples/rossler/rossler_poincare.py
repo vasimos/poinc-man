@@ -362,7 +362,6 @@ for p, pd in zip(poinc, pData):
         
     idum=idum+1
 
-plt.show()
 
 fig1.subplots_adjust(top=0.98, bottom=0.15, left=0., right=0.99, hspace=.6,wspace=0.7)
 fig1.savefig('rossler_maps.pdf', dpi=600)

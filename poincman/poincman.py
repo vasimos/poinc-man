@@ -156,7 +156,20 @@ class PoincMap:
         # flatten serves to convert 1 x length(signs) array to a vector
         return np.asarray(((signs < 0) & (dir_cross[0:-1] == self.direction)).nonzero()).flatten()
 #
-       
+    def poincPoint_ivp(self, ds, ic, TpoincReturn, tminFrac=1e-2, atol=1e-10, rtol=1e-7):
+        # Integrate equations of dynamical system until next intersection with Poincare section.
+        # ds: dynamical system to be integrated (this should be an instance initialized in main)
+        # ic: initial condition 
+        # TpoincReturn: average return time to Poincare section
+        # tminFrac: integrate for at least tminFrac*TpoincReturn before checking Poincare condition to avoid early termination
+        # Returns:
+        #   [t, y]: length two sequence containing solution times and array with dependent variables 
+        self.poincCondtx.__func__.terminal = True # Terminate integration after first intersection
+        self.int_min_t = tminFrac*TpoincReturn # Minimum time to integrate in order to avoid early termination of integration
+        # Add check for ds.A
+        sol = solve_ivp(ds.f_ps, [0,10*TpoincReturn], ic, method='BDF', events = self.poincCondtx, jac=ds.A, atol=atol,rtol=rtol) # Integrate until next intersection with Poincare section.
+        return [sol.t,sol.y]    
+
     def interp1dRM(self,s,sorted_map_label='None',sorted_label='None',step=1, kind = 'nearest'):
         """
         Given a 1D array of data representing values of any scalar at successive intersection with the Poincar\'e section, construct a return map as an interpolating function. Useful mostly for data generated after manifold learning has been applied.i
@@ -341,16 +354,19 @@ class PoincMap:
         Returns:
             1D numpy array
         """
-        vc = self.vc # vc controls the splitting in self.split_rs.
-        if self.split_case ==1:
-            rvalid = np.all( np.vstack( [sr[:,1] > self.pol(sr[:,0]), sr[:,1]>vc] ), axis=0 )
-        elif self.split_case ==2:
-            rvalid = np.all( np.vstack( [sr[:,1] < self.pol(sr[:,0]), sr[:,1]<vc] ), axis=0 )
-        elif self.split_case ==3:
-            rvalid = np.all( np.vstack( [sr[:,1] > self.pol(sr[:,0]), sr[:,0]<vc] ), axis=0 )
-        elif self.split_case ==4:
-            rvalid = np.all( np.vstack( [sr[:,1] < self.pol(sr[:,0]), sr[:,0]<vc] ), axis=0 )            
-        return sr[np.invert(rvalid),0]  
+        if self.r_valid is not None: # If this has been defined then we take into account the split by vc
+            vc = self.vc # vc controls the splitting in self.split_rs.
+            if self.split_case ==1:
+                rvalid = np.all( np.vstack( [sr[:,1] > self.pol(sr[:,0]), sr[:,1]>vc] ), axis=0 )
+            elif self.split_case ==2:
+                rvalid = np.all( np.vstack( [sr[:,1] < self.pol(sr[:,0]), sr[:,1]<vc] ), axis=0 )
+            elif self.split_case ==3:
+                rvalid = np.all( np.vstack( [sr[:,1] > self.pol(sr[:,0]), sr[:,0]<vc] ), axis=0 )
+            elif self.split_case ==4:
+                rvalid = np.all( np.vstack( [sr[:,1] < self.pol(sr[:,0]), sr[:,0]<vc] ), axis=0 )            
+            return sr[np.invert(rvalid),0]  
+        else: # if self.r_valid is undefined simply return s coordinate
+            return sr[:,0]
 
     def plotItinS(self, itin, cobweb=True, c='r', cc = None, linestyles='solid', s=10, periodic=False, zorder=2):
         """
@@ -607,7 +623,7 @@ class PoincMap:
             sPO = self.ssp2emb(copy.deepcopy(pPtsPO)) # Re-embed points
             if self.demb == 2: # If two dimensional embedding
                 sPO = self.sr2s(sPO) # Convert to single parameter (skips points parameterized by r)
-            #print('sPO=',sPO)
+            print('sPO=',sPO)
             seq2 = self.s2symb(sPO)            
             # Check that we got the correct solution
             if seq2 in self.cycPerm(seq): # Poincare section points can be a cyclic permutation of requested sequence
@@ -1344,7 +1360,7 @@ class PoincMap:
         else: # bisection is the fail-safe method
             irv = self.seq2irv(seq)
             root = sp.optimize.bisect(self.fixedPointRM,irv[0],irv[1], args=(len(seq),))
-            return self.itinSingle(root,len(seq)-1) # Is this stabel for very long cycles?
+            return self.itinSingle(root,len(seq)-1) # Is this stable for very long cycles?
             #irvs = self.cycleIrvs(seq)
             #return [sp.optimize.bisect(self.fixedPointRM,irv[0],irv[1], args=(len(seq),), xtol=tol) for irv in irvs]
                                                         
@@ -1405,16 +1421,20 @@ class PoincMap:
                     #yguess = np.asarray([np.fft.irfft(np.fft.rfft(irp(tgrid))[:200],n=tgrid.shape[0]) for irp in irpPOguess]) # interpolate in regular grid and chop high-fourier modes 
         return [POtseg, POseg]
            
-    def unstManif1d(self, POlabel, eps0, Npoints, Npoinc, TpoincMean, atol=1e-9, rtol=1e-6, tol=1e-6, max_nodes=30000):
+    def unstManif1d(self, POlabel, eps0, Npoints, Npoinc, TpoincMean, guess=None, atol=1e-9, rtol=1e-6, tol=1e-6, max_nodes=30000):
         # Compute part of unstable manifold of periodic orbit with symbolic sequence POlabel. 
         # It first recomputes the periodic orbit, computes its Jacobian, and then initializes trajectories on the local linear unstable manifold.
         # eps0: minimum distance of initial conditions from periodic point (on the unstable manifold
         # Npoints: number of points to use for the parameterization
         # Npoinc: number of intersection with Poincare section (estimate)
         # TpoincMean: mean time between intersections with Poincare section
+        # guess: if None, recompute guess based on label; otherwise pass list of np.arrays [time, data] containing guess for PO
         # tol: tolerance for solve_bvp
         # max_nodes: number of nodes for solve_bvp
-        POguess = self.guessMultiVarS(self.equation, self.cycleIC(POlabel), POlabel, TpoincMean, atol=atol, rtol=rtol)
+        if guess==None:
+            POguess = self.guessMultiVarS(self.equation, self.cycleIC(POlabel), POlabel, TpoincMean, atol=atol, rtol=rtol)
+        else:
+            POguess = guess
         TpGuess = POguess[0][-1]
         solPO = solve_bvp(self.equation.f_bvp_ps, self.bcPO, POguess[0]/TpGuess, POguess[1], p=[TpGuess], tol=tol, verbose=2, max_nodes=max_nodes) # Remove adhoc parameters?
         #Tp = solPO.p[0]
