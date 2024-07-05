@@ -239,7 +239,7 @@ class PoincMap:
         # Return interpolating function
         return interpRM 
     
-    def sParamSP(self,s, datSP=None, kind='nearest'):
+    def sParamSP(self,s, datSP=None, kind='nearest',fill_value='extrapolate'):
         """
         Parameterize points on the Poincare section using first manifold learning coordinate s as parameter. State space points are provided by optional variable datSP or by self.poincPoints. 
         Parameters:
@@ -256,7 +256,7 @@ class PoincMap:
             data = self.poincPoints.transpose()
         else:
             data = datSP.transpose()
-        self.s2sp = [sp.interpolate.interp1d(s, dat, kind = kind) for dat in data]
+        self.s2sp = [sp.interpolate.interp1d(s, dat, kind = kind, fill_value=fill_value) for dat in data]
         return self.s2sp
 
     def rParamSP(self,r, datSP=None, kind='nearest'):
@@ -1453,24 +1453,27 @@ class PoincMap:
             UMdataTab.append(UMdata)
         return UMdataTab
 
-    def sParamUM(self,UMpos, UMneg=np.asarray([])):
+    def sParamUM(self,UMpos, UMneg=np.asarray([]),kind='nearest'):
         # Parametrize 1d unstable manifold data with manifold learning coordinate s through a call to self.ssp2emb().
         # UMpos: 3d array containing unstable manifold data returned by unstManif1d
         # UMneg: optionally also include data obtained by initializing the manifold with negative sign of epsilon
         # Returns:
+        # List containing:
         #   sUM: s coordinates of data
-        #   sParam: parametrization of state-space points on the manifolds by s.
+        #   sParam: interpolating function parametrizing state-space points on the manifolds by s.
+
         UMvisPos = np.reshape(UMpos, [UMpos.shape[0]*UMpos.shape[1],UMpos.shape[2]])
         if UMneg.shape[0] != 0:
             UMvisNeg = np.reshape(UMneg, [UMneg.shape[0]*UMneg.shape[1],UMneg.shape[2]])
             UMvis = np.concatenate((UMvisPos,UMvisNeg))
         else:
-            UMvis = UMpos
+            UMvis = UMvisPos
+        print('manif shape', UMvis.shape)
         sUM = self.ssp2emb(UMvis)
         if sUM.ndim>1: # Check dimensionality of embedding
-            sParamUM = self.sParamSP(sUM[:,0], datSP=UMvis, kind='nearest')
+            sParamUM = self.sParamSP(sUM[:,0], datSP=UMvis, kind=kind)
         else:
-            sParamUM = self.sParamSP(sUM, datSP=UMvis, kind='nearest')
+            sParamUM = self.sParamSP(sUM, datSP=UMvis, kind=kind)
         return [sUM, sParamUM]
 
 ###################################
