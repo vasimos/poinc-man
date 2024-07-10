@@ -200,15 +200,15 @@ class PoincMap:
             #Downsample map but keep the same endpoints
             snSort = np.append(snSort[::step],snSort[-1])
             snp1Sort = np.append(snp1Sort[::step],snp1Sort[-1])
-        if sorted_label is not 'None':
+        if sorted_label is not None:
            setattr(self,sorted_label, snSort)        
-        if sorted_map_label is not 'None':
+        if sorted_map_label is not None:
            setattr(self,sorted_map_label, np.array([snSort,snp1Sort]).transpose())
         self.interpRM = sp.interpolate.interp1d(snSort,snp1Sort, kind = kind)
         # Return interpolating function
         return self.interpRM 
 
-    def interp1d_map(self, S, sorted_map_label='None',sorted_label='None', kind = 'nearest'):
+    def interp1d_map(self, S, sorted_map_label=None,sorted_label=None, kind = 'nearest',fill_value='extrapolate'):
         """
         Given any data representing a 1D return map, construct an interpolating function for the return map. Useful mostly for data generated after manifold learning has been applied.
         Parameters:
@@ -231,11 +231,11 @@ class PoincMap:
         # Use the same indices in order to sort sn and snp1
         snSort = sn[sSortInd] 
         snp1Sort = snp1[sSortInd]
-        if sorted_label is not 'None':
+        if sorted_label is not None:
            setattr(self,sorted_label, snSort)            
-        if sorted_map_label is not 'None':
+        if sorted_map_label is not None:
             setattr(self,sorted_map_label,np.array([snSort,snp1Sort]).transpose())
-        interpRM = sp.interpolate.interp1d(snSort,snp1Sort, kind = kind)
+        interpRM = sp.interpolate.interp1d(snSort,snp1Sort, kind = kind, fill_value='extrapolate')
         # Return interpolating function
         return interpRM 
     
@@ -253,9 +253,14 @@ class PoincMap:
             interpolating function of the same dimension as the state-space
         """
         if datSP is None: # If no data are passed, then use Poincare section points computed by previous call to getValues
-            data = self.poincPoints.transpose()
+            data = self.poincPoints
         else:
-            data = datSP.transpose()
+            data = datSP
+        # Sort S for interpolation to work
+        sSortInd = np.argsort(s)  # indices that sort s
+        # Use the same indices in order to sort data
+        data = data[sSortInd]
+        data = data.transpose()    
         self.s2sp = [sp.interpolate.interp1d(s, dat, kind = kind, fill_value=fill_value) for dat in data]
         return self.s2sp
 
@@ -272,6 +277,7 @@ class PoincMap:
         Returns: 
             interpolating function of the same dimension as the state-space
         """
+        ###??? Shouldn't this sort data in the same manner as sParamSP? Is this function used somewhere?
         if datSP is None: # If no data are passed, then use Poincare section points computed by previous call to getValues
             data = self.poincPoints.transpose()
         else:
