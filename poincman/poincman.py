@@ -253,16 +253,12 @@ class PoincMap:
             interpolating function of the same dimension as the state-space
         """
         if datSP is None: # If no data are passed, then use Poincare section points computed by previous call to getValues
-            data = self.poincPoints
+            data = self.poincPoints.transpose()
         else:
-            data = datSP
-        # Sort S for interpolation to work
-        sSortInd = np.argsort(s)  # indices that sort s
-        # Use the same indices in order to sort data
-        data = data[sSortInd]
-        data = data.transpose()    
+            data = datSP.transpose()    
         self.s2sp = [sp.interpolate.interp1d(s, dat, kind = kind, fill_value=fill_value) for dat in data]
         return self.s2sp
+
 
     def rParamSP(self,r, datSP=None, kind='nearest'):
         """
@@ -1009,7 +1005,7 @@ class PoincMap:
     
     def theta_inv(self,seq,cp=1):
         """
-        Computes invariant coordinate theta for a symbolic sequence. See Gilmore and Lefrance "Topology of chaos" book.
+        Computes invariant coordinate theta for a symbolic sequence. See Gilmore and Lefranc "Topology of chaos" book.
         Parameters:
             seq: list of integers
                 symbolic sequence
@@ -1381,6 +1377,7 @@ class PoincMap:
         #   [t, y]: length two sequence containing solution times and array with dependent variables 
         if plt_guess:
             plt.figure()
+            plt.title('PO='+self.list2str(seq))
         icPOg = self.s2spV(c0[0])
         self.poincCondtx.__func__.terminal = True # Terminate integration after first intersection
         self.int_min_t = tminFrac*TpoincReturn # Minimum time to integrate in order to avoid early termination of integration
