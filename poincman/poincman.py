@@ -78,7 +78,6 @@ class PoincMap:
         self.sign_norm_r = 1 # normalization choice; setting to -1 reverses the sign of q's returned from manifold learning
         self.rmin_0 = False # Whether to shift origin of variables to zero interval
         self.rmax_1 = False # Whether to map variables to unit interval (self.qmin_0 is set to true automatically)
-
         
     def poincCond(self, x):
         """
@@ -546,7 +545,7 @@ class PoincMap:
             for p in pts: 
                 d_s = np.linalg.norm(p-self.s_data, axis=1).min()
                 d_r = np.linalg.norm(p-self.r_data, axis=1).min()
-                if d_s<=d_r:
+                if d_s<=d_r or d_r>self.rcutoff:
                     tmp=np.asarray([self.normalize_s(self.emb_s.transform(p.reshape(1, -1))[0,0]),np.nan])
                     emb_pts.append(tmp)
                 else:
